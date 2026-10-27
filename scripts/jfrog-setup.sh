@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Creates the Artifactory repositories used by the secure pipeline.
 # Usage:
-#   export JF_URL=https://trialmrial.jfrog.io
+#   export JF_URL=https://trialmrial2.jfrog.io
 #   export JF_ADMIN_TOKEN=<admin access token>   # never commit this
 #   bash scripts/jfrog-setup.sh
 set -euo pipefail
 
 : "${JF_URL:?set JF_URL}"
 : "${JF_ADMIN_TOKEN:?set JF_ADMIN_TOKEN}"
-PROJECT_KEY="${PROJECT_KEY:-jfjs}"   # JFrog Project key; repo keys must start with it
+PROJECT_KEY="${PROJECT_KEY:-jfjs2}"   # JFrog Project key; repo keys must start with it
 
 create_repo() {
   local key="$1" body="$2"
@@ -23,21 +23,21 @@ create_repo() {
 }
 
 # ---- npm ----
-create_repo jfjs-npm-remote '{
+create_repo jfjs2-npm-remote '{
   "rclass":"remote","packageType":"npm",
   "url":"https://registry.npmjs.org",
   "xrayIndex":true,
   "description":"Proxy of npmjs.org"
 }'
 
-create_repo jfjs-npm '{
+create_repo jfjs2-npm '{
   "rclass":"virtual","packageType":"npm",
-  "repositories":["jfjs-npm-remote"],
+  "repositories":["jfjs2-npm-remote"],
   "description":"Single npm resolution endpoint"
 }'
 
 # ---- Docker: upstream proxies ----
-create_repo jfjs-docker-remote '{
+create_repo jfjs2-docker-remote '{
   "rclass":"remote","packageType":"docker",
   "url":"https://registry-1.docker.io",
   "enableTokenAuthentication":true,
@@ -45,7 +45,7 @@ create_repo jfjs-docker-remote '{
   "description":"Proxy of Docker Hub"
 }'
 
-create_repo jfjs-gcr-remote '{
+create_repo jfjs2-gcr-remote '{
   "rclass":"remote","packageType":"docker",
   "url":"https://gcr.io",
   "xrayIndex":true,
@@ -53,23 +53,23 @@ create_repo jfjs-gcr-remote '{
 }'
 
 # ---- Docker: local repos (dev -> prod promotion) ----
-create_repo jfjs-docker-dev-local '{
+create_repo jfjs2-docker-dev-local '{
   "rclass":"local","packageType":"docker",
   "xrayIndex":true,
   "description":"Images built by CI, not yet promoted"
 }'
 
-create_repo jfjs-docker-prod-local '{
+create_repo jfjs2-docker-prod-local '{
   "rclass":"local","packageType":"docker",
   "xrayIndex":true,
   "description":"Images that passed the quality gate"
 }'
 
 # ---- Docker: virtual (single pull/push endpoint) ----
-create_repo jfjs-docker '{
+create_repo jfjs2-docker '{
   "rclass":"virtual","packageType":"docker",
-  "repositories":["jfjs-docker-dev-local","jfjs-docker-prod-local","jfjs-docker-remote","jfjs-gcr-remote"],
-  "defaultDeploymentRepo":"jfjs-docker-dev-local",
+  "repositories":["jfjs2-docker-dev-local","jfjs2-docker-prod-local","jfjs2-docker-remote","jfjs2-gcr-remote"],
+  "defaultDeploymentRepo":"jfjs2-docker-dev-local",
   "description":"Single Docker endpoint: pulls base images, pushes to dev-local"
 }'
 

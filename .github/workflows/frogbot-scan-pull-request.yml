@@ -20,7 +20,7 @@ jobs:
           node-version: "24"
       - uses: jfrog/frogbot@v2
         env:
-          JF_URL: https://trialmrial.jfrog.io
+          JF_URL: https://trialmrial2.jfrog.io
           JF_GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           oidc-provider-name: github-oidc

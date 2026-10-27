@@ -9,11 +9,11 @@ dependency through Artifactory, and is gated by Xray before anything can be prom
 ## Architecture
 
 ```
-GitHub Actions ──► Artifactory (project jfjs) ──► Xray
-  npm install        jfjs-npm  (virtual) ──► jfjs-npm-remote (npmjs)
-  docker build       jfjs-docker (virtual) ─► jfjs-docker-remote (Docker Hub), jfjs-gcr-remote (gcr.io)
-  docker push        jfjs-docker-dev-local ──(promotion, main only)──► jfjs-docker-prod-local
-  build-info         jfjs-build-info
+GitHub Actions ──► Artifactory (project jfjs2) ──► Xray
+  npm install        jfjs2-npm  (virtual) ──► jfjs2-npm-remote (npmjs)
+  docker build       jfjs2-docker (virtual) ─► jfjs2-docker-remote (Docker Hub), jfjs2-gcr-remote (gcr.io)
+  docker push        jfjs2-docker-dev-local ──(promotion, main only)──► jfjs2-docker-prod-local
+  build-info         jfjs2-build-info
 ```
 
 Each remote repository also has an auto-created `-cache` repository that stores the proxied packages.
@@ -21,27 +21,27 @@ Each remote repository also has an auto-created `-cache` repository that stores 
 | Stage | What happens | Gate |
 |---|---|---|
 | Authenticate | GitHub OIDC (provider `github-oidc`): a short-lived JFrog token per run, no stored credentials | Build fails if no token is issued |
-| Resolve and compile | `jf npm install` through `jfjs-npm`; base images pulled through `jfjs-docker` | Build fails if a dependency can't be resolved via Artifactory |
+| Resolve and compile | `jf npm install` through `jfjs2-npm`; base images pulled through `jfjs2-docker` | Build fails if a dependency can't be resolved via Artifactory |
 | Test | `npm test` (one retry, because one upstream test calls github.com) | Any failing test stops the run |
 | Package | Multi-stage Docker build; npm credentials via BuildKit secret, so they never land in a layer | n/a |
 | Publish | `jf docker push` plus build-info (env, git revision, dependencies, image) | n/a |
-| Scan | `jf build-scan --fail=true` against watch `jfjs-juice-shop-watch` | Fails on any High or Critical (policy `jfjs-block-high-critical`) |
+| Scan | `jf build-scan --fail=true` against watch `jfjs2-juice-shop-watch` | Fails on any High or Critical (policy `jfjs2-block-high-critical`) |
 | SBOM | CycloneDX export of the image from Xray, kept as workflow artifact `sbom` | n/a |
-| Promote | Build promoted to `jfjs-docker-prod-local` | Only on `main`, only if all gates passed |
+| Promote | Build promoted to `jfjs2-docker-prod-local` | Only on `main`, only if all gates passed |
 
 ## Traceability and auditability
 
 Every image is tied to its build number, Git commit, workflow run URL, the exact npm dependencies
-and the image digest through the published build-info (`jfrog-juice-shop` #N in project `jfjs`).
+and the image digest through the published build-info (`jfrog-juice-shop` #N in project `jfjs2`).
 Xray scan results and the promotion status are recorded against that same build. The CycloneDX
 SBOM is generated on every run and stored with the workflow run.
 
 ## Xray results (build 12)
 
 Xray scans 1,188 components in the build and reports 103 vulnerabilities (10 Critical, 36 High,
-45 Medium, 12 Low). The policy `jfjs-block-high-critical` flags the High and Critical ones:
+45 Medium, 12 Low). The policy `jfjs2-block-high-critical` flags the High and Critical ones:
 **46 policy violations (10 Critical, 36 High)**. The gate fails the build, so the image stays in
-`jfjs-docker-dev-local` and is not promoted.
+`jfjs2-docker-dev-local` and is not promoted.
 
 ### Most risky finding: `jsonwebtoken` 0.4.0 (Critical)
 
@@ -60,8 +60,8 @@ The application is intentionally left unchanged, so the gate stays red and promo
 To reproduce it you need a JFrog Platform with Xray (a trial is enough) and a GitHub repository.
 
 1. **Fork or clone this repository** and edit the `env` block of `.github/workflows/secure-pipeline.yml`
-   (`JF_URL`, `JF_HOST`, and `JFROG_CLI_BUILD_PROJECT` if your JFrog project key is not `jfjs`).
-2. **Create the repositories.** In JFrog, create a project with key `jfjs`, then run:
+   (`JF_URL`, `JF_HOST`, and `JFROG_CLI_BUILD_PROJECT` if your JFrog project key is not `jfjs2`).
+2. **Create the repositories.** In JFrog, create a project with key `jfjs2`, then run:
    ```bash
    export JF_URL=https://<your-instance>.jfrog.io
    export JF_ADMIN_TOKEN=<admin access token>   # never commit this
@@ -73,13 +73,13 @@ To reproduce it you need a JFrog Platform with Xray (a trial is enough) and a Gi
    `{"repository":"<owner>/<repo>"}` that maps to a group (here `github-ci`) holding the project roles
    Developer, Release Manager and Security Manager.
 4. **Set up the Xray gate.** Create a policy (minimum severity High, *Fail Build* enabled) and a watch
-   covering the build `jfrog-juice-shop` and the `jfjs-docker-dev-local` / `jfjs-docker-prod-local`
+   covering the build `jfrog-juice-shop` and the `jfjs2-docker-dev-local` / `jfjs2-docker-prod-local`
    repositories, then add the build under *Xray > Indexed Resources > Builds* after its first run
    has published it.
 5. **Run it.** Push to `main`, open a pull request, or use *Actions > secure-pipeline > Run workflow*.
 
 Expected result: dependencies resolve through Artifactory, tests pass, the image is pushed to
-`jfjs-docker-dev-local`, and the Xray scan fails the build on the High and Critical findings, so
+`jfjs2-docker-dev-local`, and the Xray scan fails the build on the High and Critical findings, so
 promotion is skipped. Where to look afterwards: *Artifactory > Builds > jfrog-juice-shop* for the
 build record, *Xray > Scans List* for the findings, and the workflow run's `sbom` artifact for the
 CycloneDX SBOM.
@@ -91,8 +91,8 @@ The registry is private. Log in with a read-only token, then:
 Docker:
 
 ```bash
-docker login trialmrial.jfrog.io -u <user>
-docker run --rm -p 3000:3000 trialmrial.jfrog.io/jfjs-docker/jfrog-juice-shop:12
+docker login trialmrial2.jfrog.io -u <user>
+docker run --rm -p 3000:3000 trialmrial2.jfrog.io/jfjs2-docker/jfrog-juice-shop:12
 # open http://localhost:3000
 ```
 
@@ -100,7 +100,7 @@ Kubernetes (`deploy/jfrog-juice-shop.yaml`):
 
 ```bash
 kubectl create secret docker-registry jfrog-pull \
-  --docker-server=trialmrial.jfrog.io --docker-username=<user> --docker-password=<read-only-token>
+  --docker-server=trialmrial2.jfrog.io --docker-username=<user> --docker-password=<read-only-token>
 kubectl apply -f deploy/jfrog-juice-shop.yaml
 kubectl rollout status deploy/jfrog-juice-shop
 kubectl port-forward svc/jfrog-juice-shop 3000:3000
